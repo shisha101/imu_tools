@@ -1,8 +1,6 @@
 <launch>
-  <arg name="razor_config_file" default="$(find razor_imu_9dof)/config/my_razor.yaml"/>
-  <node pkg="razor_imu_9dof" type="imu_node.py" name="imu_node" output="screen">
-    <rosparam file="$(arg razor_config_file)" command="load"/>
-  </node>
+
+  <include file="$(find razor_imu_9dof)/launch/razor_driver.launch"> </include>
 
   <node pkg="imu_filter_madgwick" type="imu_filter_node" name="madgwick_imu_filter_node" output="screen">
     <param name="mag_subscribe_topic_name" value="/sensor/imu/razor_imu/mag_calib" />

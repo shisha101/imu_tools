@@ -1,19 +1,7 @@
 <launch>
-  <node pkg="sensor_imu_mti_xsens" type="xsens_mti" name="xsens_mti" output="screen">
 
-    <param name="port_name" value="/dev/ttyUSB0" />
-    <param name="frequency" value="400" />
-    <param name="frame_name" value="imu_xsens_position" />
-
-    <!-- Choose if system is configurated. NoSystemConfig == 1: Preconfigured Device can be used -->
-    <param name="NoSystemConfig" value="0" />
-
-    <!-- If  NoSystemConfig == 0::    0 = Orientation, 1 = RawData (calibrated), 2 = MagneticField 3 = Orientation,Accel,Gyr,Magnetic-->
-    <param name="configuration" value="0" />
-
-    <!--From the MTI-300 manual, the drift for Yaw angle is 1deg, for Roll/Pitch 0.2deg. Time period unknown -->
-    <rosparam param="orientation_covariance">[100.0, 0.0, 0.0, 0.0, 100.0, 0.0, 0.0, 0.0, 0.01]</rosparam>
-  </node>
+  <include file="$(find sensor_imu_mti_xsens)/launch/xsens_mti.launch"> </include>
+  <param name="xsens_mti/frequency" value="400" />
 
   <node pkg="imu_filter_madgwick" type="imu_filter_node" name="madgwick_imu_filter_node" output="screen">
     <param name="mag_subscribe_topic_name" value="/sensor/imu/xsens_mti/mag_calib" />
