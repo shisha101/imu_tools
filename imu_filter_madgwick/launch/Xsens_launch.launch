@@ -3,7 +3,7 @@
   <include file="$(find sensor_imu_mti_xsens)/launch/xsens_mti.launch"> </include>
   <param name="xsens_mti/frequency" value="400" />
 
-  <node pkg="imu_filter_madgwick" type="imu_filter_node" name="madgwick_imu_filter_node" output="screen">
+  <node pkg="imu_filter_madgwick" type="imu_filter_node" name="madgwick_Xsens_imu_filter_node" output="screen">
     <param name="mag_subscribe_topic_name" value="/sensor/imu/xsens_mti/mag_calib" />
     <param name="imu_subscribe_topic_name" value="/sensor/imu/xsens_mti/data" />
 
@@ -17,13 +17,13 @@
     <rosparam command="load" file="$(find imu_visualization)/configs/Xsens_imu_sensor_config.yaml" />
   </node>
 
-  <node pkg="imu_visualization" type="display_3D_visualization.py" name="Filtered_data_vis_node" output="screen">
+  <node pkg="imu_visualization" type="display_3D_visualization.py" name="Filtered_Xsens_data_vis_node" output="screen">
     <param name="imu_topic" value="madgwick_imu_filter_node/imu" />
     <param name="imu_name" value="Xsens_filtered" />
     <param name="mag_topic" value="/sensor/imu/xsens_mti/mag_calib" />
   </node>
 
-  <node pkg="imu_visualization" type="display_3D_visualization.py" name="Raw_data_vis_node" output="screen">
+  <node pkg="imu_visualization" type="display_3D_visualization.py" name="Raw_Xsens_data_vis_node" output="screen">
     <param name="imu_topic" value="/sensor/imu/xsens_mti/data" />
     <param name="imu_name" value="Xsense_raw" />
     <param name="mag_topic" value="/sensor/imu/xsens_mti/mag_calib" />
