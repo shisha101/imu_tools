@@ -60,16 +60,17 @@ ImuFilterRos::ImuFilterRos(ros::NodeHandle nh, ros::NodeHandle nh_private):
 
   if (!nh_private.hasParam ("gyro_offset") || !nh_private.hasParam ("acc_offset") || !nh_private.hasParam ("acc_scaling")){
     ROS_WARN ("No configuration parameters found ...");
+    ROS_WARN ("Default parameters will be used ...");
   }
   else{
     ROS_INFO ("the configuration parameters for the IMU are");
-    nh_private.param ("gyro_offset", gyro_offset_, zero_3);
-    nh_private.param ("acc_offset", acc_offset_, zero_3);
-    nh_private.param ("acc_scaling", acc_scaling_, ones_3);
 //    ROS_INFO (gyro_offset_);
 //    ROS_INFO (acc_offset_);
 //    ROS_INFO (acc_scaling_);
   }
+  nh_private.param ("gyro_offset", gyro_offset_, zero_3);
+  nh_private.param ("acc_offset", acc_offset_, zero_3);
+  nh_private.param ("acc_scaling", acc_scaling_, ones_3);
 
   nh_private.param("mag_subscribe_topic_name", mag_topic_sub_, mag_subscribe_topic_name_default);
   nh_private.param("mag_publish_topic_name", mag_topic_pub_, mag_publish_topic_name_default);
