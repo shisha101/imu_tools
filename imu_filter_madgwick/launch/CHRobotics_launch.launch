@@ -1,12 +1,12 @@
 <launch>
-
+<arg name="Imu_name" default="um7" />
   <include file="$(find um7)/launch/um7_driver.launch"> </include>
 
   <node pkg="imu_filter_madgwick" type="imu_filter_node" name="madgwick_CHRobotics_imu_filter_node" output="screen">
     <param name="mag_subscribe_topic_name" value="/sensor/imu/um7/magfield_msg" />
     <param name="imu_subscribe_topic_name" value="/sensor/imu/um7/data" />
 
-    <param name="imu_publish_topic_name" value="madgwick_CHRobotics_filter_node/imu" />
+    <param name="imu_publish_topic_name" value="madgwick_CHRobotics_filter_node/$(arg Imu_name)/imu" />
     <param name="mag_publish_topic_name" value="NOTUSED" />
 
     <param name="use_mag" value="true" /> <!-- Use magnetometer data ?? -->

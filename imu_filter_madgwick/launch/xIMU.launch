@@ -1,0 +1,31 @@
+<launch>
+<arg name="Imu_name" default="xIMU" />
+  <include file="$(find x_imu_ros_driver)/launch/xIMU_driver.launch"> </include>
+
+  <node pkg="imu_filter_madgwick" type="imu_filter_node" name="madgwick_$(arg Imu_name)_imu_filter_node" output="screen">
+    <param name="mag_subscribe_topic_name" value="/sensor/imu/xIMU/magfield_msg" />
+    <param name="imu_subscribe_topic_name" value="/sensor/imu/xIMU/data" />
+
+    <param name="imu_publish_topic_name" value="madgwick_imu_filter_node/$(arg Imu_name)/imu" />
+    <param name="mag_publish_topic_name" value="NOTUSED" />
+
+    <param name="use_mag" value="true" /> <!-- Use magnetometer data ?? -->
+    <param name="use_magnetic_field_msg" value="true" /> <!-- is the magnetometer data in the standard message type ?? -->
+
+    <!-- Load imu parameters -->
+    <!-- rosparam command="load" file="$(find imu_visualization)/configs/$(arg Imu_name)_imu_sensor_config.yaml" / -->
+  </node>
+
+  <node pkg="imu_visualization" type="display_3D_visualization.py" name="Filtered_$(arg Imu_name)_data_vis_node" output="screen">
+    <param name="imu_topic" value="madgwick_imu_filter_node/$(arg Imu_name)/imu" />
+    <param name="imu_name" value="$(arg Imu_name)_filtered" />
+    <param name="mag_topic" value="/sensor/imu/xIMU/magfield_msg" />
+  </node>
+
+  <node pkg="imu_visualization" type="display_3D_visualization.py" name="Raw_$(arg Imu_name)_data_vis_node" output="screen">
+    <param name="imu_topic" value="/sensor/imu/xIMU/data" />
+    <param name="imu_name" value="$(arg Imu_name)_raw" />
+    <param name="mag_topic" value="/sensor/imu/xIMU/magfield_msg" />
+  </node>
+
+</launch>

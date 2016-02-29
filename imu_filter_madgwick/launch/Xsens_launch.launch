@@ -1,5 +1,5 @@
 <launch>
-
+<arg name="Imu_name" default="Xsens" />
   <include file="$(find sensor_imu_mti_xsens)/launch/xsens_mti.launch"> </include>
   <param name="xsens_mti/frequency" value="400" />
 
@@ -7,7 +7,7 @@
     <param name="mag_subscribe_topic_name" value="/sensor/imu/xsens_mti/mag_calib" />
     <param name="imu_subscribe_topic_name" value="/sensor/imu/xsens_mti/data" />
 
-    <param name="imu_publish_topic_name" value="madgwick_imu_filter_node/imu" />
+    <param name="imu_publish_topic_name" value="madgwick_imu_filter_node/$(arg Imu_name)/imu" />
     <param name="mag_publish_topic_name" value="NOTUSED" />
 
     <param name="use_mag" value="true" /> <!-- Use magnetometer data ?? -->
@@ -18,7 +18,7 @@
   </node>
 
   <node pkg="imu_visualization" type="display_3D_visualization.py" name="Filtered_Xsens_data_vis_node" output="screen">
-    <param name="imu_topic" value="madgwick_imu_filter_node/imu" />
+    <param name="imu_topic" value="madgwick_imu_filter_node/$(arg Imu_name)/imu" />
     <param name="imu_name" value="Xsens_filtered" />
     <param name="mag_topic" value="/sensor/imu/xsens_mti/mag_calib" />
   </node>
