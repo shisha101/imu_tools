@@ -68,9 +68,46 @@ ImuFilterRos::ImuFilterRos(ros::NodeHandle nh, ros::NodeHandle nh_private):
 //    ROS_INFO (acc_offset_);
 //    ROS_INFO (acc_scaling_);
   }
+  if (!nh_private.hasParam ("sensitivities") || !nh_private.hasParam ("bias_w_sensitivity") || !nh_private.hasParam ("bias_simple")){
+    ROS_WARN ("No configuration parameters found ...");
+    ROS_WARN ("Default parameters will be used ...");
+  }
+  else{
+    ROS_INFO ("the configuration parameters for the IMU are");
+//    ROS_INFO (gyro_offset_);
+//    ROS_INFO (acc_offset_);
+//    ROS_INFO (acc_scaling_);
+  }
+  // acc and gyro params
   nh_private.param ("gyro_offset", gyro_offset_, zero_3);
   nh_private.param ("acc_offset", acc_offset_, zero_3);
   nh_private.param ("acc_scaling", acc_scaling_, ones_3);
+  // magnetometer params
+  nh_private.param ("sensitivities", mag_sens_, ones_3);
+  nh_private.param ("bias_w_sensitivity", mag_bias_s_, zero_3);
+  nh_private.param ("bias_simple", mag_bias_r_, zero_3);
+  // magnetometer calibration option (which calibration to use, sensitivity + bias, bias only)
+  int mag_calibration_mode = 0;
+  nh_private.param ("mag_calib_mode", mag_calibration_mode, 0);
+  //this is done here to avoid an if condition inside the call back function
+  // 0 uses sensitivity and bias, 1 uses bias alone, 2 uses no calibration (default is sensitivity and bias, where nothing needs to change)
+  if (mag_calibration_mode == 1){
+    mag_sens_ = ones_3; // override sensitivity to 1
+    mag_bias_s_ = mag_bias_r_;
+    ROS_INFO("magnetometer using bias values only");
+  }
+  else if (mag_calibration_mode == 2){
+    mag_sens_ = ones_3;
+    mag_bias_s_ = zero_3;
+    ROS_INFO("no magnetometer calibration in use");
+  }
+  else{
+    ROS_INFO("magnetometer using bias and sensitivity values");
+  }
+  mag_bias_.x = mag_bias_s_[0];
+  mag_bias_.y = mag_bias_s_[1];
+  mag_bias_.z = mag_bias_s_[2];
+
 
   nh_private.param("mag_subscribe_topic_name", mag_topic_sub_, mag_subscribe_topic_name_default);
   nh_private.param("mag_publish_topic_name", mag_topic_pub_, mag_publish_topic_name_default);
@@ -115,11 +152,15 @@ ImuFilterRos::ImuFilterRos(ros::NodeHandle nh, ros::NodeHandle nh_private):
 
   if (publish_debug_topics_)
   {
+    std::string debug_tn_default= "debug";
+    std::string debug_tn;
+    nh_private.param("debug_topic_name", debug_tn, debug_tn_default);
+
     rpy_filtered_debug_publisher_ = nh_.advertise<geometry_msgs::Vector3Stamped>(
-      ros::names::resolve("imu") + "/rpy/filtered", 5);
+      ros::names::resolve(debug_tn) + "/rpy/filtered", 5);
 
     rpy_raw_debug_publisher_ = nh_.advertise<geometry_msgs::Vector3Stamped>(
-      ros::names::resolve("imu") + "/rpy/raw", 5);
+      ros::names::resolve(debug_tn) + "/rpy/raw", 5);
   }
 
   // **** register subscribers
@@ -230,9 +271,11 @@ void ImuFilterRos::imuMagCallback(
   imu_frame_ = imu_msg_raw->header.frame_id;
 
   /*** Compensate for hard iron ***/
-  double mx = mag_fld.x - mag_bias_.x;
-  double my = mag_fld.y - mag_bias_.y;
-  double mz = mag_fld.z - mag_bias_.z;
+  double mx = mag_sens_ [0] * (mag_fld.x - mag_bias_s_[0]);//mag_bias_.x);
+  double my = mag_sens_ [1] * (mag_fld.y - mag_bias_s_[1]);//mag_bias_.y);
+  double mz = mag_sens_ [2] * (mag_fld.z - mag_bias_s_[2]);//mag_bias_.z);
+//  ROS_INFO("the original mag readings were %f, %f, %f ", mag_fld.x, mag_fld.y, mag_fld.z);
+//  ROS_INFO("the corrected mag readings are %f, %f, %f ", mx, my, mz);
 
   /*** Compensate accelerometer ***/
   lin_acc_corr.x = (lin_acc.x-acc_offset_[0])*acc_scaling_[0];

@@ -96,9 +96,14 @@ class ImuFilterRos
     std::string imu_topic_sub_;
     std::string imu_topic_pub_;
 
+    // AHRS calibration parameters
     std::vector<double> gyro_offset_;
     std::vector<double> acc_offset_;
     std::vector<double> acc_scaling_;
+    std::vector<double> mag_sens_;   // magnetometer sensitivity
+    std::vector<double> mag_bias_s_; // bias with sensitivty
+    std::vector<double> mag_bias_r_; // raw bias with out sensitivity
+
 
     // **** state variables
     boost::mutex mutex_;
