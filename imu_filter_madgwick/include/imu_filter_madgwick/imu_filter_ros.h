@@ -37,6 +37,8 @@
 
 #include "imu_filter_madgwick/imu_filter.h"
 #include "imu_filter_madgwick/ImuFilterMadgwickConfig.h"
+#include <tf2/LinearMath/Quaternion.h>
+#include <std_srvs/Empty.h>
 
 class ImuFilterRos
 {
@@ -77,6 +79,7 @@ class ImuFilterRos
     ros::Publisher rpy_raw_debug_publisher_;
     ros::Publisher imu_publisher_;
     tf2_ros::TransformBroadcaster tf_broadcaster_;
+    ros::ServiceServer home_service_;
 
     boost::shared_ptr<FilterConfigServer> config_server_;
 
@@ -109,6 +112,7 @@ class ImuFilterRos
     boost::mutex mutex_;
     bool initialized_;
     ros::Time last_time_;
+    tf2::Quaternion home_;
 
     // **** filter implementation
     ImuFilter filter_;
@@ -132,6 +136,8 @@ class ImuFilterRos
     void computeRPY(float ax, float ay, float az,
                     float mx, float my, float mz,
                     float& roll, float& pitch, float& yaw);
+    // **** service for home position
+    bool set_home(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res);
 };
 
 #endif // IMU_FILTER_IMU_MADWICK_FILTER_ROS_H

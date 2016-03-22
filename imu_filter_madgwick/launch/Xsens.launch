@@ -3,7 +3,7 @@
 <arg name="calib_mode" default="1" />
 <arg name="vis_on" default="true" />
   <include file="$(find sensor_imu_mti_xsens)/launch/xsens_mti.launch"> </include>
-  <param name="xsens_mti/frequency" value="400" />
+  <param name="xsens_mti/frequency" value="100" />
 
   <!-- Magdwick_without_mag_correction -->
   <node pkg="imu_filter_madgwick" type="imu_filter_node" name="madgwick_$(arg Imu_name)_imu_filter_node" output="screen">

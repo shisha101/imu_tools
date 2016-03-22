@@ -24,13 +24,13 @@
 
 #include "imu_filter_madgwick/imu_filter_ros.h"
 #include "geometry_msgs/TransformStamped.h"
-#include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Matrix3x3.h>
 
 ImuFilterRos::ImuFilterRos(ros::NodeHandle nh, ros::NodeHandle nh_private):
   nh_(nh),
   nh_private_(nh_private),
-  initialized_(false)
+  initialized_(false),
+  home_(tf2::Quaternion(0,0,0,1))
 {
   ROS_INFO ("Starting ImuFilter");
 
@@ -42,6 +42,8 @@ ImuFilterRos::ImuFilterRos(ros::NodeHandle nh, ros::NodeHandle nh_private):
   const std::string imu_publish_topic_name_default = "imu/data";
   std::vector<double> zero_3 (3,0.0);
   std::vector<double> ones_3 (3,1.0);
+//  home_ = tf2::Quaternion(0,0,0,1);
+  home_service_ = nh_private.advertiseService("home_pos_service", &ImuFilterRos::set_home, this);
 
   // **** get paramters
 
@@ -87,7 +89,7 @@ ImuFilterRos::ImuFilterRos(ros::NodeHandle nh, ros::NodeHandle nh_private):
   nh_private.param ("bias_w_sensitivity", mag_bias_s_, zero_3);
   nh_private.param ("bias_simple", mag_bias_r_, zero_3);
   // magnetometer calibration option (which calibration to use, sensitivity + bias, bias only)
-  int mag_calibration_mode = 0;
+  int mag_calibration_mode;
   nh_private.param ("mag_calib_mode", mag_calibration_mode, 0);
   //this is done here to avoid an if condition inside the call back function
   // 0 uses sensitivity and bias, 1 uses bias alone, 2 uses no calibration (default is sensitivity and bias, where nothing needs to change)
@@ -104,6 +106,11 @@ ImuFilterRos::ImuFilterRos(ros::NodeHandle nh, ros::NodeHandle nh_private):
   else{
     ROS_INFO("magnetometer using bias and sensitivity values");
   }
+      ROS_INFO("the magnetometer biases are x:%.3f, y:%.3f, z:%.3f", mag_bias_s_[0], mag_bias_s_[1], mag_bias_s_[2]);
+      ROS_INFO("the magnetometer sensitivitys are x:%.3f, y:%.3f, z:%.3f", mag_sens_[0], mag_sens_[1], mag_sens_[2]);
+//      ROS_INFO(mag_bias_s_);
+//      ROS_INFO("the magnetometer sensitivitys are");
+//      ROS_INFO(mag_sens_);
   mag_bias_.x = mag_bias_s_[0];
   mag_bias_.y = mag_bias_s_[1];
   mag_bias_.z = mag_bias_s_[2];
@@ -374,6 +381,12 @@ void ImuFilterRos::publishFilteredMsg(const ImuMsg::ConstPtr& imu_msg_raw)
 {
   double q0,q1,q2,q3;
   filter_.getOrientation(q0,q1,q2,q3);
+  tf2::Quaternion quat_absolute = tf2::Quaternion(q1, q2, q3, q0);
+  tf2::Quaternion quat_relative_to_home = quat_absolute * home_;
+  q0 = quat_relative_to_home.w();
+  q1 = quat_relative_to_home.x();
+  q2 = quat_relative_to_home.y();
+  q3 = quat_relative_to_home.z();
 
   // create and publish filtered IMU message
   boost::shared_ptr<ImuMsg> imu_msg =
@@ -463,4 +476,15 @@ void ImuFilterRos::imuMagVectorCallback(const MagVectorMsg::ConstPtr& mag_vector
   mag_msg.magnetic_field = mag_vector_msg->vector;
   // leaving mag_msg.magnetic_field_covariance set to all zeros (= "covariance unknown")
   mag_republisher_.publish(mag_msg);
+}
+
+bool ImuFilterRos::set_home(std_srvs::Empty::Request &req, std_srvs::Empty::Response &res)
+{
+  boost::mutex::scoped_lock(mutex_);
+  double q0,q1,q2,q3;
+  filter_.getOrientation(q0,q1,q2,q3);
+  tf2::Quaternion quat_current = tf2::Quaternion(-q1, -q2, -q3, q0);
+  home_ = quat_current;
+  return true;
+
 }
