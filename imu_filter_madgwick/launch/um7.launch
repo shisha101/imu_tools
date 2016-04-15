@@ -2,7 +2,11 @@
 <arg name="Imu_name" default="um7" />
 <arg name="calib_mode" default="1" />
 <arg name="vis_on" default="true" />
-  <include file="$(find um7)/launch/um7_driver.launch"> </include>
+<arg name="load_driver" default="true" />
+
+  <group if="$(arg load_driver)">
+    <include file="$(find um7)/launch/um7_driver.launch"> </include>
+  </group>
 
   <!-- Magdwick_without_mag_correction -->
   <node pkg="imu_filter_madgwick" type="imu_filter_node" name="madgwick_$(arg Imu_name)_imu_filter_node" output="screen">
