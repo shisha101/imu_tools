@@ -281,6 +281,10 @@ void ImuFilterRos::imuMagCallback(
   double mx = mag_sens_ [0] * (mag_fld.x - mag_bias_s_[0]);//mag_bias_.x);
   double my = mag_sens_ [1] * (mag_fld.y - mag_bias_s_[1]);//mag_bias_.y);
   double mz = mag_sens_ [2] * (mag_fld.z - mag_bias_s_[2]);//mag_bias_.z);
+  if (mz > 0){
+    mz = -mz;
+    ROS_WARN_ONCE("direction of mag has been reversed, check mag calibration / IMU mounting");
+  }
 //  ROS_INFO("the original mag readings were %f, %f, %f ", mag_fld.x, mag_fld.y, mag_fld.z);
 //  ROS_INFO("the corrected mag readings are %f, %f, %f ", mx, my, mz);
 
