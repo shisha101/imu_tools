@@ -42,6 +42,7 @@ ImuFilterRos::ImuFilterRos(ros::NodeHandle nh, ros::NodeHandle nh_private):
   const std::string imu_publish_topic_name_default = "imu/data";
   std::vector<double> zero_3 (3,0.0);
   std::vector<double> ones_3 (3,1.0);
+  std::vector<double> zeros_9 (9,0.0);
 //  home_ = tf2::Quaternion(0,0,0,1);
   home_service_ = nh_private.advertiseService("home_pos_service", &ImuFilterRos::set_home, this);
 
@@ -88,26 +89,65 @@ ImuFilterRos::ImuFilterRos(ros::NodeHandle nh, ros::NodeHandle nh_private):
   nh_private.param ("sensitivities", mag_sens_, ones_3);
   nh_private.param ("bias_w_sensitivity", mag_bias_s_, zero_3);
   nh_private.param ("bias_simple", mag_bias_r_, zero_3);
+  nh_private.param ("elipsoid_center", mag_bias_e_, zero_3);
+  nh_private.param ("elipsoid_transformation", mag_trans_e_, zeros_9);
+//  ROS_ERROR("the magnetometer transformations are x:%.3f, y:%.3f, z:%.3f", mag_trans_e_[0], mag_trans_e_[1], mag_trans_e_[2]);
+//  ROS_ERROR("the magnetometer transformations are x:%.3f, y:%.3f, z:%.3f", mag_trans_e_[3], mag_trans_e_[4], mag_trans_e_[5]);
+//  ROS_ERROR("the magnetometer transformations are x:%.3f, y:%.3f, z:%.3f", mag_trans_e_[6], mag_trans_e_[7], mag_trans_e_[8]);
   // magnetometer calibration option (which calibration to use, sensitivity + bias, bias only)
   int mag_calibration_mode;
   nh_private.param ("mag_calib_mode", mag_calibration_mode, 0);
   //this is done here to avoid an if condition inside the call back function
   // 0 uses sensitivity and bias, 1 uses bias alone, 2 uses no calibration (default is sensitivity and bias, where nothing needs to change)
+  tf2::Matrix3x3 I_mat(1.0,0.0,0.0,
+                       0.0,1.0,0.0,
+                       0.0,0.0,1.0);
+  tf2::Vector3 zeros_v(0.0, 0.0, 0.0);
+  // Bias correction only
   if (mag_calibration_mode == 1){
     mag_sens_ = ones_3; // override sensitivity to 1
     mag_bias_s_ = mag_bias_r_;
     ROS_INFO("magnetometer using bias values only");
+    mag_trans_mat = I_mat;
+    bias_vec = tf2::Vector3(mag_bias_r_[0],mag_bias_r_[1] ,mag_bias_r_[2]);
   }
-  else if (mag_calibration_mode == 2){
-    mag_sens_ = ones_3;
-    mag_bias_s_ = zero_3;
-    ROS_INFO("no magnetometer calibration in use");
+  // ellipsoid correction
+  else if (mag_calibration_mode == 3){
+    if(mag_trans_e_[0] == 0 && mag_trans_e_[1] == 0 && mag_trans_e_[2] == 0){
+      mag_trans_mat = I_mat;
+      bias_vec = zeros_v;
+      ROS_WARN("No elipsoid calibration parameters found, using I mat and 0 bias");
+    }
+    else{
+    mag_trans_mat = tf2::Matrix3x3(mag_trans_e_[0], mag_trans_e_[1], mag_trans_e_[2],
+        mag_trans_e_[3], mag_trans_e_[4], mag_trans_e_[5],
+        mag_trans_e_[6], mag_trans_e_[7], mag_trans_e_[8]);
+    bias_vec = tf2::Vector3(mag_bias_e_[0],mag_bias_e_[1] ,mag_bias_e_[2]);
+    }
   }
-  else{
+  // bias and scaling
+  else if (mag_calibration_mode == 0){
+    mag_trans_mat = tf2::Matrix3x3(mag_sens_[0], 0 , 0,
+                                   0, mag_sens_[1], 0,
+                                   0, 0, mag_sens_[2]);
+    bias_vec = tf2::Vector3(mag_bias_s_[0],mag_bias_s_[1] ,mag_bias_s_[2]);
     ROS_INFO("magnetometer using bias and sensitivity values");
   }
-      ROS_INFO("the magnetometer biases are x:%.3f, y:%.3f, z:%.3f", mag_bias_s_[0], mag_bias_s_[1], mag_bias_s_[2]);
-      ROS_INFO("the magnetometer sensitivitys are x:%.3f, y:%.3f, z:%.3f", mag_sens_[0], mag_sens_[1], mag_sens_[2]);
+  // No correction
+  else {
+    mag_sens_ = ones_3;
+    mag_bias_s_ = zero_3;
+    mag_trans_mat = I_mat;
+    bias_vec = zeros_v;
+    ROS_INFO("no magnetometer calibration in use");
+  }
+  tf2::Vector3 tr_1 = mag_trans_mat.getRow(0);
+  tf2::Vector3 tr_2 = mag_trans_mat.getRow(1);
+  tf2::Vector3 tr_3 = mag_trans_mat.getRow(2);
+  ROS_INFO("the magnetometer Transformation is x:%.3f, y:%.3f, z:%.3f", tr_1[0], tr_1[1], tr_1[2]);
+  ROS_INFO("the magnetometer Transformation is x:%.3f, y:%.3f, z:%.3f", tr_2[0], tr_2[1], tr_2[2]);
+  ROS_INFO("the magnetometer Transformation is x:%.3f, y:%.3f, z:%.3f", tr_3[0], tr_3[1], tr_3[2]);
+  ROS_INFO("the magnetometer bais is x:%.3f, y:%.3f, z:%.3f", bias_vec[0], bias_vec[1], bias_vec[2]);
 //      ROS_INFO(mag_bias_s_);
 //      ROS_INFO("the magnetometer sensitivitys are");
 //      ROS_INFO(mag_sens_);
@@ -278,9 +318,20 @@ void ImuFilterRos::imuMagCallback(
   imu_frame_ = imu_msg_raw->header.frame_id;
 
   /*** Compensate for hard iron ***/
-  double mx = mag_sens_ [0] * (mag_fld.x - mag_bias_s_[0]);//mag_bias_.x);
-  double my = mag_sens_ [1] * (mag_fld.y - mag_bias_s_[1]);//mag_bias_.y);
-  double mz = mag_sens_ [2] * (mag_fld.z - mag_bias_s_[2]);//mag_bias_.z);
+  tf2::Vector3 offset_corrected_mag_val = tf2::Vector3(mag_fld.x - bias_vec[0], mag_fld.y - bias_vec[1], mag_fld.z - bias_vec[2]);
+  tf2::Vector3 corrected_mag_vals = mag_trans_mat * offset_corrected_mag_val;
+  double mx = corrected_mag_vals[0];
+  double my = corrected_mag_vals[1];
+  double mz = corrected_mag_vals[2];
+//  double mx_1 = mag_sens_ [0] * (mag_fld.x - mag_bias_s_[0]);//mag_bias_.x);
+//  double my_1 = mag_sens_ [1] * (mag_fld.y - mag_bias_s_[1]);//mag_bias_.y);
+//  double mz_1 = mag_sens_ [2] * (mag_fld.z - mag_bias_s_[2]);//mag_bias_.z);
+//  ROS_WARN("the shifted mag readings are %f, %f, %f ", mx_1-mx, my_1-my, mz_1-mz);
+//  ROS_WARN("the baias corrected mag readings are %f, %f, %f ", mx_1, my_1, mz_1);
+//  ROS_WARN("the processed mag readings are %f, %f, %f ", mx, my, mz);
+//  ROS_WARN("the shifted mag readings were %f, %f, %f ", mag_fld.x - mag_bias_s_[0], mag_fld.x - mag_bias_s_[0], mag_fld.x - mag_bias_s_[0]);
+//  ROS_WARN("the scaled mag readings were %f, %f, %f ", mx, my, mz);
+//  ROS_WARN("the scaling values are %f, %f, %f ", mag_sens_[0], mag_sens_[1], mag_sens_[2]);
   if (mz > 0){
     mz = -mz;
     ROS_WARN_ONCE("direction of mag has been reversed, check mag calibration / IMU mounting");

@@ -38,6 +38,7 @@
 #include "imu_filter_madgwick/imu_filter.h"
 #include "imu_filter_madgwick/ImuFilterMadgwickConfig.h"
 #include <tf2/LinearMath/Quaternion.h>
+#include <tf2/LinearMath/Matrix3x3.h>
 #include <std_srvs/Empty.h>
 
 class ImuFilterRos
@@ -106,6 +107,10 @@ class ImuFilterRos
     std::vector<double> mag_sens_;   // magnetometer sensitivity
     std::vector<double> mag_bias_s_; // bias with sensitivty
     std::vector<double> mag_bias_r_; // raw bias with out sensitivity
+    std::vector<double> mag_bias_e_; // ellipsoid bias
+    std::vector<double> mag_trans_e_; // ellipsoid transformation
+    tf2::Matrix3x3 mag_trans_mat; //  the trasformation matrix used to correct magnetometer information
+    tf2::Vector3 bias_vec;
 
 
     // **** state variables
